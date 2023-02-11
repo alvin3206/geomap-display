@@ -36,3 +36,44 @@
     transform: rotate(360deg);
   }
 }
+
+#map {
+  height: 100vh;
+  width: 100%;
+}
+
+.fixed-sidebar {
+  height: 100%;
+  /* width: 160px; */
+  position: fixed;
+  top: 0;
+  left: 0;
+  /* padding: 20px, 10px; */
+  background-color: rgba(127, 127, 127, 0.1);
+  overflow-x: hidden
+}
+
+.loading-screen {
+  position: fixed;
+  border: 10px solid #f3f3f3;
+  border-top: 10px solid #3498db;
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  animation: spin 1s linear infinite;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transform: -webkit-translate(-50%, -50%);
+  transform: -moz-translate(-50%, -50%);
+  transform: -ms-translate(-50%, -50%);
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+} 
