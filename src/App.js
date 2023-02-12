@@ -13,13 +13,20 @@ const FixedSidebar = ({ handleLayerToggle, layerToggles, dataSources }) => {
       <div className="layer-control">
         <h3>Layers Control</h3>
         {Object.keys(layerToggles).map(layerId => (
-          <div key={layerId}>
-            <input
-              type="checkbox"
-              checked={layerToggles[layerId]}
-              onChange={() => handleLayerToggle(layerId)}
-            />
-            {dataSources.find(dataSource => dataSource.id === layerId).name}
+          <div key={layerId} className="layer-item">
+            <div>
+              <input
+                type="checkbox"
+                checked={layerToggles[layerId].on}
+                onChange={() => handleLayerToggle(layerId)}
+              />
+              {dataSources.find(dataSource => layerId.includes(dataSource.id)).name}
+            </div>
+            <small style={{
+              color: layerToggles[layerId].color
+            }}>
+              {layerId.slice('dataSource1'.length)}
+            </small>
           </div>
         ))}
       </div>
@@ -53,7 +60,6 @@ const App = () => {
   useEffect(() => {
     setLoading(true);
     mapboxgl.accessToken = mapboxAccessToken;
-    console.log("loading");
     const initializeMap = () => {
       const map = new mapboxgl.Map({
         container: 'map',
@@ -63,7 +69,6 @@ const App = () => {
       });
 
       map.on('load', () => {
-        console.log('load');
         dataSources.forEach(async (dataSourceInfo, index) => {
           const { id, url } = dataSourceInfo;
 
@@ -75,19 +80,27 @@ const App = () => {
                 'type': 'geojson',
                 'data': url
               });
-              const { type, paint } = determineLayerType(data.features[0].geometry);
-              map.addLayer({
-                'id': id,
-                'type': type,
-                'source': id, // reference the data source
-                'visibility': 'visible',
-                'layout': {},
-                'paint': paint
+              const geometries = [...new Set(data.features.map(e => e.geometry.type))];
+              geometries.forEach((geometry, i) => {
+                const { type, paint, color } = determineLayerType(data.features[0].geometry);
+                map.addLayer({
+                  'id': id + '-' + geometry,
+                  'type': type,
+                  'source': id, // reference the data source
+                  'visibility': 'visible',
+                  'layout': {},
+                  'paint': paint
+                },
+                  // 'label'
+                );
+                setLayerToggles(prevLayerToggles => ({
+                  ...prevLayerToggles,
+                  [id + '-' + geometry]: {
+                    on: true,
+                    color: color
+                  }
+                }));
               });
-              setLayerToggles(prevLayerToggles => ({
-                ...prevLayerToggles,
-                [dataSourceInfo.id]: true
-              }));
             })
             .catch(error => {
               console.error(error);
@@ -97,11 +110,9 @@ const App = () => {
       });
 
       map.on('styledata', () => {
-        for (let index = 0; index < dataSources.length; index++) {
-          if (!map.getLayer(dataSources[index].id)) return;
+        for (let layerToggle of Object.entries(layerToggles)) {
+          if (!map.getLayer(layerToggle.id)) return;
         }
-        console.log("finished loading");
-        console.log(map);
         setLoading(false);
       });
     };
@@ -119,25 +130,26 @@ const App = () => {
 
   const determineLayerType = (data) => {
     let type, paint;
+    let color = getColor();
     switch (data.type) {
       case 'Point':
         type = 'circle';
         paint = {
           'circle-radius': 5,
-          'circle-color': getColor()
+          'circle-color': color
         };
         break;
       case 'LineString':
         type = 'line';
         paint = {
           'line-width': 2,
-          'line-color': getColor()
+          'line-color': color
         };
         break;
       case 'Polygon':
         type = 'fill';
         paint = {
-          'fill-color': getColor(),
+          'fill-color': color,
           'fill-opacity': 0.25
         };
         break;
@@ -145,20 +157,20 @@ const App = () => {
         type = 'circle';
         paint = {
           'circle-radius': 5,
-          'circle-color': getColor()
+          'circle-color': color
         };
         break;
       case 'MultiLineString':
         type = 'line';
         paint = {
           'line-width': 2,
-          'line-color': getColor()
+          'line-color': color
         };
         break;
       case 'MultiPolygon':
         type = 'fill';
         paint = {
-          'fill-color': getColor(),
+          'fill-color': color,
           'fill-opacity': 0.25,
         };
         break;
@@ -166,16 +178,15 @@ const App = () => {
         console.error(`Unsupported data type: ${data.type}`);
         return {};
     }
-    return { type, paint };
+    return { type, paint, color };
   };
 
 
   const handleLayerToggle = id => {
     if (!map) return;
-    console.log('toggle');
     setLayerToggles(prevLayerToggles => {
-      const newLayerToggles = { ...prevLayerToggles, [id]: !prevLayerToggles[id] };
-      if (newLayerToggles[id]) {
+      const newLayerToggles = { ...prevLayerToggles, [id]: {...prevLayerToggles[id], on: !prevLayerToggles[id].on} };
+      if (newLayerToggles[id].on) {
         map.setLayoutProperty(id, 'visibility', 'visible');
       } else {
         map.setLayoutProperty(id, 'visibility', 'none');
@@ -186,9 +197,7 @@ const App = () => {
 
   const recenterMap = () => {
     if (!map) return;
-    console.log('button');
     map.setCenter(center);
-    // map.setView(center);
     map.setZoom(10);
   };
 

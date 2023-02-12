@@ -51,7 +51,6 @@
   left: 0;
   background-color: rgba(127, 127, 127, 0.1);
   background: linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.3) 60%, rgba(255,255,255,0.2) 100%);
-  overflow-x: hidden;
   padding: 1rem;
   max-width: 180px;
 }
@@ -94,4 +93,10 @@ button {
   text-decoration: none;
   display: inline-block;
   cursor: pointer;
+}
+
+.layer-item {
+  display: flex;
+  flex-direction: column;
+  padding: 5px 0;
 }
