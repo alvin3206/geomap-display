@@ -50,12 +50,14 @@
   top: 0;
   left: 0;
   background-color: rgba(127, 127, 127, 0.1);
+  background: linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.3) 60%, rgba(255,255,255,0.2) 100%);
   overflow-x: hidden;
   padding: 1rem;
   max-width: 180px;
 }
 
 .loading-screen {
+  background-color: rgba(0,0,0,0);;
   position: fixed;
   border: 10px solid #f3f3f3;
   border-top: 10px solid #3498db;
@@ -63,12 +65,8 @@
   width: 80px;
   height: 80px;
   animation: spin 1s linear infinite;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  transform: -webkit-translate(-50%, -50%);
-  transform: -moz-translate(-50%, -50%);
-  transform: -ms-translate(-50%, -50%);
+  top: calc(50% - 50px);
+  left: calc(50% - 50px);
 }
 
 @keyframes spin {
@@ -90,10 +88,10 @@ button {
   background-color: #04AA6D;
   border: none;
   color: white;
-  padding: 15px 32px;
+  padding: 15px 24px;
+  border-radius: 4px;
   text-align: center;
   text-decoration: none;
   display: inline-block;
-  font-size: 16px;
   cursor: pointer;
 }

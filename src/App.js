@@ -5,6 +5,7 @@ import chroma from 'chroma-js';
 import './App.css';
 
 const center = [-76.045441, 36.745131];
+let color = 12000;
 
 const FixedSidebar = ({ handleLayerToggle, layerToggles, dataSources }) => {
   return (
@@ -27,7 +28,7 @@ const FixedSidebar = ({ handleLayerToggle, layerToggles, dataSources }) => {
 };
 
 const App = () => {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [map, setMap] = useState(null);
   const [layerToggles, setLayerToggles] = useState({});
   const mapboxAccessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
@@ -45,10 +46,10 @@ const App = () => {
   ];
 
   useEffect(() => {
+    setLoading(true);
     mapboxgl.accessToken = mapboxAccessToken;
 
     const initializeMap = () => {
-
       const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/light-v11',
@@ -90,58 +91,80 @@ const App = () => {
             });
         });
       });
+
+      map.on('styledata', () => {
+        for (let index = 0; index < dataSources.length; index++) {
+          if (!map.getLayer(dataSources[index].id)) return;
+        }
+        setLoading(false);
+      });
     };
+
 
     if (!map) {
       initializeMap();
     }
+
+
   }, [map]);
 
   const getColor = () => {
-    return chroma.random().hex();
+    color += 10000;
+    return chroma(color % 16777215).hex();
   }
 
   const determineLayerType = (data) => {
     let type, paint;
-    if (data.type === 'Point') {
-      type = 'circle';
-      paint = {
-        'circle-radius': 5,
-        'circle-color': getColor()
-      };
-    } else if (data.type === 'LineString') {
-      type = 'line';
-      paint = {
-        'line-width': 2,
-        'line-color': getColor()
-      };
-    } else if (data.type === 'Polygon') {
-      type = 'fill';
-      paint = {
-        'fill-color': getColor(),
-        'fill-opacity': 0.5
-      };
-    } else if (data.type === 'MultiPoint') {
-      type = 'circle';
-      paint = {
-        'circle-radius': 5,
-        'circle-color': getColor()
-      };
-    } else if (data.type === 'MultiLineString') {
-      type = 'line';
-      paint = {
-        'line-width': 2,
-        'line-color': getColor()
-      };
-    } else if (data.type === 'MultiPolygon') {
-      type = 'fill';
-      paint = {
-        'fill-color': getColor(),
-        'fill-opacity': 0.5
-      };
+    switch (data.type) {
+      case 'Point':
+        type = 'circle';
+        paint = {
+          'circle-radius': 5,
+          'circle-color': getColor()
+        };
+        break;
+      case 'LineString':
+        type = 'line';
+        paint = {
+          'line-width': 2,
+          'line-color': getColor()
+        };
+        break;
+      case 'Polygon':
+        type = 'fill';
+        paint = {
+          'fill-color': getColor(),
+          'fill-opacity': 0.5
+        };
+        break;
+      case 'MultiPoint':
+        type = 'circle';
+        paint = {
+          'circle-radius': 5,
+          'circle-color': getColor()
+        };
+        break;
+      case 'MultiLineString':
+        type = 'line';
+        paint = {
+          'line-width': 2,
+          'line-color': getColor()
+        };
+        break;
+      case 'MultiPolygon':
+        type = 'fill';
+        paint = {
+          'fill-color': getColor(),
+          'fill-opacity': 0.5
+        };
+        break;
+      default:
+        console.error(`Unsupported data type: ${data.type}`);
+        return {};
     }
     return { type, paint };
   };
+
 
   const handleLayerToggle = id => {
     if (!map) return;
@@ -165,9 +188,17 @@ const App = () => {
   return (
     <div>
       <div id="map" />
-      <button className="recenter-btn" onClick={recenterMap}>Recenter</button>
-      <FixedSidebar handleLayerToggle={handleLayerToggle} layerToggles={layerToggles} dataSources={dataSources} />
-      {/* <div className="loading-screen" /> */}
+      {!loading && (
+        <div>
+          <button className="recenter-btn" onClick={recenterMap}>Recenter</button>
+          <FixedSidebar handleLayerToggle={handleLayerToggle} layerToggles={layerToggles} dataSources={dataSources} />
+        </div>
+      )}
+
+      {loading && (
+        <div className="loading-screen">
+        </div>
+      )}
     </div>
   );
 };
