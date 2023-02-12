@@ -35,11 +35,16 @@ const App = () => {
   let dataSources = [
     {
       id: 'dataSource1',
-      name: 'Noise Zone Outline (AICUZ)',
-      url: 'https://geo.vbgov.com/mapservices/rest/services/Basemaps/AICUZ/MapServer/0/query?outFields=*&where=1%3D1&f=geojson'
+      name: 'City Boundary',
+      url: "https://geo.vbgov.com/mapservices/rest/services/Basemaps/Property_Information/MapServer/18/query?outFields=*&where=1%3D1&f=geojson"
     },
     {
       id: 'dataSource2',
+      name: 'Aircraft Noise Levels (AICUZ)',
+      url: 'https://geo.vbgov.com/mapservices/rest/services/Basemaps/AICUZ/MapServer/3/query?outFields=*&where=1%3D1&f=geojson'
+    },
+    {
+      id: 'dataSource3',
       name: 'Road Surfaces',
       url: 'https://geo.vbgov.com/mapservices/rest/services/Basemaps/Structures_and_Physical_Features/MapServer/11/query?outFields=*&where=1%3D1&f=geojson'
     }
@@ -48,7 +53,7 @@ const App = () => {
   useEffect(() => {
     setLoading(true);
     mapboxgl.accessToken = mapboxAccessToken;
-
+    console.log("loading");
     const initializeMap = () => {
       const map = new mapboxgl.Map({
         container: 'map',
@@ -58,14 +63,12 @@ const App = () => {
       });
 
       map.on('load', () => {
-        setMap(map);
+        console.log('load');
         dataSources.forEach(async (dataSourceInfo, index) => {
           const { id, url } = dataSourceInfo;
 
-          fetch(url)
-            .then(response => {
-              return response.json();
-            })
+          await fetch(url)
+            .then(response => response.json())
             .then(data => {
               // Add a data source containing the GeoJSON data.
               map.addSource(id, {
@@ -90,12 +93,15 @@ const App = () => {
               console.error(error);
             });
         });
+        setMap(map);
       });
 
       map.on('styledata', () => {
         for (let index = 0; index < dataSources.length; index++) {
           if (!map.getLayer(dataSources[index].id)) return;
         }
+        console.log("finished loading");
+        console.log(map);
         setLoading(false);
       });
     };
@@ -104,12 +110,10 @@ const App = () => {
     if (!map) {
       initializeMap();
     }
-
-
-  }, [map]);
+  }, []);
 
   const getColor = () => {
-    color += 10000;
+    color += 24213;
     return chroma(color % 16777215).hex();
   }
 
@@ -134,7 +138,7 @@ const App = () => {
         type = 'fill';
         paint = {
           'fill-color': getColor(),
-          'fill-opacity': 0.5
+          'fill-opacity': 0.25
         };
         break;
       case 'MultiPoint':
@@ -155,7 +159,7 @@ const App = () => {
         type = 'fill';
         paint = {
           'fill-color': getColor(),
-          'fill-opacity': 0.5
+          'fill-opacity': 0.25,
         };
         break;
       default:
@@ -168,6 +172,7 @@ const App = () => {
 
   const handleLayerToggle = id => {
     if (!map) return;
+    console.log('toggle');
     setLayerToggles(prevLayerToggles => {
       const newLayerToggles = { ...prevLayerToggles, [id]: !prevLayerToggles[id] };
       if (newLayerToggles[id]) {
@@ -181,7 +186,9 @@ const App = () => {
 
   const recenterMap = () => {
     if (!map) return;
-    map.setCenter([-76.045441, 36.745131]);
+    console.log('button');
+    map.setCenter(center);
+    // map.setView(center);
     map.setZoom(10);
   };
 
