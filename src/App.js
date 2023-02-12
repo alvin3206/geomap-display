@@ -4,41 +4,55 @@ import chroma from 'chroma-js';
 
 import './App.css';
 
+// Center coordinate for the map
 const center = [-76.045441, 36.745131];
+// Starter color for the layers
 let color = 12000;
 
+// Component for the fixed sidebar with layer toggle controls
 const FixedSidebar = ({ handleLayerToggle, layerToggles, dataSources }) => {
   return (
     <div className="fixed-sidebar">
       <div className="layer-control">
         <h3>Layers Control</h3>
-        {Object.keys(layerToggles).map(layerId => (
-          <div key={layerId} className="layer-item">
-            <div>
-              <input
-                type="checkbox"
-                checked={layerToggles[layerId].on}
-                onChange={() => handleLayerToggle(layerId)}
-              />
-              {dataSources.find(dataSource => layerId.includes(dataSource.id)).name}
+        {
+          // Iterate over the layerToggles object and render a toggle control for each layer
+          Object.keys(layerToggles).map(layerId => (
+            <div key={layerId} className="layer-item">
+              <div>
+                <input
+                  type="checkbox"
+                  checked={layerToggles[layerId].on}
+                  onChange={() => handleLayerToggle(layerId)}
+                />
+                {
+                  // Title of each layer item
+                  dataSources.find(dataSource => layerId.includes(dataSource.id)).name
+                }
+                <small style={{
+                  color: layerToggles[layerId].color
+                }}>
+                  {layerId.slice('dataSource1'.length)}
+                </small>
+              </div>
+
             </div>
-            <small style={{
-              color: layerToggles[layerId].color
-            }}>
-              {layerId.slice('dataSource1'.length)}
-            </small>
-          </div>
-        ))}
+          ))}
       </div>
     </div>
   );
 };
 
 const App = () => {
+  // State variables for loading status, map instance, and layer visibility
   const [loading, setLoading] = useState(true);
   const [map, setMap] = useState(null);
   const [layerToggles, setLayerToggles] = useState({});
+
+  // Mapbox access token from environment variable
   const mapboxAccessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
+
+  // Array of data sources for the map
   let dataSources = [
     {
       id: 'dataSource1',
@@ -59,7 +73,10 @@ const App = () => {
 
   useEffect(() => {
     setLoading(true);
+
+    // Set the mapbox access token
     mapboxgl.accessToken = mapboxAccessToken;
+
     const initializeMap = () => {
       const map = new mapboxgl.Map({
         container: 'map',
@@ -68,6 +85,7 @@ const App = () => {
         zoom: 10
       });
 
+      // Event handler for when the map is finished loading
       map.on('load', () => {
         dataSources.forEach(async (dataSourceInfo, index) => {
           const { id, url } = dataSourceInfo;
@@ -80,19 +98,27 @@ const App = () => {
                 'type': 'geojson',
                 'data': url
               });
+
+              // Get a unique list of geometry types in the data
               const geometries = [...new Set(data.features.map(e => e.geometry.type))];
               geometries.forEach((geometry, i) => {
-                const { type, paint, color } = determineLayerType(data.features[0].geometry);
+                // Determine the layer type and paint properties based on the geometry type
+                const { type, paint, color } = determineLayerType(geometry);
+                let cvGeometry = geometry;
+                if (geometry.includes("Multi")) cvGeometry = geometry.slice(5);
                 map.addLayer({
                   'id': id + '-' + geometry,
                   'type': type,
                   'source': id, // reference the data source
                   'visibility': 'visible',
                   'layout': {},
-                  'paint': paint
+                  'paint': paint,
+                  'filter': ['==', '$type', cvGeometry]
                 },
                   // 'label'
                 );
+
+                // Update the layerToggles state to include the new layer
                 setLayerToggles(prevLayerToggles => ({
                   ...prevLayerToggles,
                   [id + '-' + geometry]: {
@@ -109,29 +135,34 @@ const App = () => {
         setMap(map);
       });
 
+      // Event handler for when the map's style data has finished loading
       map.on('styledata', () => {
+        // Check if all layers in the map are loaded
         for (let layerToggle of Object.entries(layerToggles)) {
           if (!map.getLayer(layerToggle.id)) return;
         }
+        // If all of the layers are present, set loading to false
         setLoading(false);
       });
     };
 
-
+    // Only initialize the map if it has not already been created
     if (!map) {
       initializeMap();
     }
   }, []);
 
+  // Function to get a random color (fixed-seed) for a layer
   const getColor = () => {
     color += 24213;
     return chroma(color % 16777215).hex();
   }
 
+  // Function to determine the layer type, paint properties, and color based on the geometry type
   const determineLayerType = (data) => {
     let type, paint;
     let color = getColor();
-    switch (data.type) {
+    switch (data) {
       case 'Point':
         type = 'circle';
         paint = {
@@ -175,17 +206,20 @@ const App = () => {
         };
         break;
       default:
-        console.error(`Unsupported data type: ${data.type}`);
+        console.error(`Unsupported data type: ${data}`);
         return {};
     }
     return { type, paint, color };
   };
 
-
+  // Function to handle layer toggle events
   const handleLayerToggle = id => {
+    // If the map has not been created yet, do nothing
     if (!map) return;
+    // Update the layerToggles state with the new toggle state
     setLayerToggles(prevLayerToggles => {
-      const newLayerToggles = { ...prevLayerToggles, [id]: {...prevLayerToggles[id], on: !prevLayerToggles[id].on} };
+      const newLayerToggles = { ...prevLayerToggles, [id]: { ...prevLayerToggles[id], on: !prevLayerToggles[id].on } };
+      // Update the visibility of the corresponding layer in the map based on the toggle state
       if (newLayerToggles[id].on) {
         map.setLayoutProperty(id, 'visibility', 'visible');
       } else {
