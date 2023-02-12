@@ -6,11 +6,11 @@ import './App.css';
 
 const center = [-76.045441, 36.745131];
 
-const FixedSidebar = ({ handleLayerToggle, layerToggles, recenterMap }) => {
+const FixedSidebar = ({ handleLayerToggle, layerToggles, dataSources }) => {
   return (
     <div className="fixed-sidebar">
       <div className="layer-control">
-        <h3>Layers Control:</h3>
+        <h3>Layers Control</h3>
         {Object.keys(layerToggles).map(layerId => (
           <div key={layerId}>
             <input
@@ -18,10 +18,9 @@ const FixedSidebar = ({ handleLayerToggle, layerToggles, recenterMap }) => {
               checked={layerToggles[layerId]}
               onChange={() => handleLayerToggle(layerId)}
             />
-            {layerId}
+            {dataSources.find(dataSource => dataSource.id === layerId).name}
           </div>
         ))}
-        <button onClick={recenterMap}>Recenter</button>
       </div>
     </div>
   );
@@ -73,7 +72,6 @@ const App = () => {
                 'data': url
               });
               const { type, paint } = determineLayerType(data.features[0].geometry);
-              // Add a new layer to visualize the polygon.
               map.addLayer({
                 'id': id,
                 'type': type,
@@ -99,8 +97,8 @@ const App = () => {
     }
   }, [map]);
 
-  const getColor = (index) => {
-    return chroma.random(index).hex();
+  const getColor = () => {
+    return chroma.random().hex();
   }
 
   const determineLayerType = (data) => {
@@ -166,10 +164,10 @@ const App = () => {
 
   return (
     <div>
-      <div className="loading-screen">
-      </div>
       <div id="map" />
-      <FixedSidebar handleLayerToggle={handleLayerToggle} layerToggles={layerToggles} recenterMap={recenterMap} />
+      <button className="recenter-btn" onClick={recenterMap}>Recenter</button>
+      <FixedSidebar handleLayerToggle={handleLayerToggle} layerToggles={layerToggles} dataSources={dataSources} />
+      {/* <div className="loading-screen" /> */}
     </div>
   );
 };

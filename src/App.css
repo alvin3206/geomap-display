@@ -43,14 +43,16 @@
 }
 
 .fixed-sidebar {
+  display: flex;
+  flex-direction: column;
   height: 100%;
-  /* width: 160px; */
   position: fixed;
   top: 0;
   left: 0;
-  /* padding: 20px, 10px; */
   background-color: rgba(127, 127, 127, 0.1);
-  overflow-x: hidden
+  overflow-x: hidden;
+  padding: 1rem;
+  max-width: 180px;
 }
 
 .loading-screen {
@@ -77,3 +79,21 @@
     transform: rotate(360deg);
   }
 } 
+
+.recenter-btn {
+  position: fixed;
+  top: 2em;
+  right: 2em;
+}
+
+button {
+  background-color: #04AA6D;
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  cursor: pointer;
+}
