@@ -31,9 +31,9 @@ const FixedSidebar = ({ handleLayerToggle, layerToggles, dataSources, infoDispla
                   dataSources.find(dataSource => layerId.includes(dataSource.id)).name
                 }
                 <small style={{
-                  color: layerToggles[layerId].color
+                  color: chroma(layerToggles[layerId].color).alpha(0.25).hex()
                 }}>
-                  {layerId.slice('dataSource1'.length)}
+                  &#9679;
                 </small>
               </div>
 
@@ -64,21 +64,21 @@ const App = () => {
   let dataSources = [
     {
       id: '0',
-      name: 'City Boundary',
-      url: "https://geo.vbgov.com/mapservices/rest/services/Basemaps/Property_Information/MapServer/18/query?outFields=*&where=1%3D1&f=geojson"
-    },
-    {
-      id: '1',
       name: 'Aircraft Noise Levels (AICUZ)',
       url: 'https://geo.vbgov.com/mapservices/rest/services/Basemaps/AICUZ/MapServer/3/query?outFields=*&where=1%3D1&f=geojson'
     },
     {
+      id: '1',
+      name: 'City Property',
+      url: 'https://geo.vbgov.com/mapservices/rest/services/Basemaps/Property_Information/MapServer/14/query?outFields=*&where=1%3D1&f=geojson'
+    },
+    {
       id: '2',
-      name: 'Road Surfaces',
-      url: 'https://geo.vbgov.com/mapservices/rest/services/Basemaps/Structures_and_Physical_Features/MapServer/11/query?outFields=*&where=1%3D1&f=geojson'
+      name: 'Stormwater Drainage Basin',
+      url: 'https://geo.vbgov.com/mapservices/rest/services/Public_Works/Stormwater/MapServer/34/query?outFields=*&where=1%3D1&f=geojson'
     },
     // {
-    //   id: '3',
+    //   id: '',
     //   name: 'Flood Zones',
     //   data: fz_data
     // }
@@ -99,6 +99,26 @@ const App = () => {
       });
 
       map.on('load', () => {
+        // Add the city's boundary
+        map.addSource('bound', {
+          type: 'geojson',
+          data: "https://geo.vbgov.com/mapservices/rest/services/Basemaps/Property_Information/MapServer/18/query?outFields=*&where=1%3D1&f=geojson"
+        });
+
+        map.addLayer({
+          id: 'bound',
+          type: 'line',
+          source: 'bound',
+          visibility: 'visible',
+          layout: {},
+          paint: {
+            'line-width': 2,
+            'line-color': "#000",
+            'line-opacity': 0.5
+          }
+        },
+        );
+
         dataSources.forEach(async (dataSourceInfo) => {
           const { id, url, data } = dataSourceInfo;
           const geojsonData = url ? await fetchGeoJSONData(url) : data;
@@ -112,22 +132,6 @@ const App = () => {
             const { type, paint, color } = determineLayerType(geometry);
             const layerId = `${id}-${geometry}`;
             const cvGeometry = geometry.includes("Multi") ? geometry.slice(5) : geometry;
-
-            // map.setLayoutProperty('label', 'text-field', [
-            //   'format',
-            //   ['get', 'name_en'],
-            //   { 'font-scale': 1.2 },
-            //   '\n',
-            //   {},
-            //   ['get', 'name'],
-            //   {
-            //     'font-scale': 0.8,
-            //     'text-font': [
-            //       'literal',
-            //       ['DIN Offc Pro Italic', 'Arial Unicode MS Regular']
-            //     ]
-            //   }
-            // ]);
 
             map.addLayer({
               id: layerId,
