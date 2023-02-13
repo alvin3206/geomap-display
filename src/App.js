@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import chroma from 'chroma-js';
-import fz_data from './Flood_Zones.json';
+// import fz_data from './Flood_Zones.json';
 
 import './App.css';
 
@@ -45,7 +45,6 @@ const FixedSidebar = ({ handleLayerToggle, layerToggles, dataSources, infoDispla
         {infoDisplay && Object.keys(infoDisplay).map(key => (
           <p key={key} className='info-item'>{key} : {infoDisplay[key]}</p>
         ))}
-        {/* <p>{ infoDisplay && JSON.stringify(infoDisplay)}</p> */}
       </div>
     </div>
   );
@@ -78,11 +77,11 @@ const App = () => {
       name: 'Road Surfaces',
       url: 'https://geo.vbgov.com/mapservices/rest/services/Basemaps/Structures_and_Physical_Features/MapServer/11/query?outFields=*&where=1%3D1&f=geojson'
     },
-    {
-      id: '3',
-      name: 'Flood Zones',
-      data: fz_data
-    }
+    // {
+    //   id: '3',
+    //   name: 'Flood Zones',
+    //   data: fz_data
+    // }
   ];
 
   useEffect(() => {
