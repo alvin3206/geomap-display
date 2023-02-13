@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import chroma from 'chroma-js';
+import fz_data from './Flood_Zones.json';
 
 import './App.css';
 
@@ -10,7 +11,7 @@ const center = [-76.045441, 36.745131];
 let color = 12000;
 
 // Component for the fixed sidebar with layer toggle controls
-const FixedSidebar = ({ handleLayerToggle, layerToggles, dataSources }) => {
+const FixedSidebar = ({ handleLayerToggle, layerToggles, dataSources, infoDisplay }) => {
   return (
     <div className="fixed-sidebar">
       <div className="layer-control">
@@ -39,6 +40,13 @@ const FixedSidebar = ({ handleLayerToggle, layerToggles, dataSources }) => {
             </div>
           ))}
       </div>
+      <div className="hover-info">
+        <h5>Information</h5>
+        {infoDisplay && Object.keys(infoDisplay).map(key => (
+          <p key={key} className='info-item'>{key} : {infoDisplay[key]}</p>
+        ))}
+        {/* <p>{ infoDisplay && JSON.stringify(infoDisplay)}</p> */}
+      </div>
     </div>
   );
 };
@@ -48,6 +56,7 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [map, setMap] = useState(null);
   const [layerToggles, setLayerToggles] = useState({});
+  const [infoDisplay, setInfoDisplay] = useState(null);
 
   // Mapbox access token from environment variable
   const mapboxAccessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
@@ -55,19 +64,24 @@ const App = () => {
   // Array of data sources for the map
   let dataSources = [
     {
-      id: 'dataSource1',
+      id: '0',
       name: 'City Boundary',
       url: "https://geo.vbgov.com/mapservices/rest/services/Basemaps/Property_Information/MapServer/18/query?outFields=*&where=1%3D1&f=geojson"
     },
     {
-      id: 'dataSource2',
+      id: '1',
       name: 'Aircraft Noise Levels (AICUZ)',
       url: 'https://geo.vbgov.com/mapservices/rest/services/Basemaps/AICUZ/MapServer/3/query?outFields=*&where=1%3D1&f=geojson'
     },
     {
-      id: 'dataSource3',
+      id: '2',
       name: 'Road Surfaces',
       url: 'https://geo.vbgov.com/mapservices/rest/services/Basemaps/Structures_and_Physical_Features/MapServer/11/query?outFields=*&where=1%3D1&f=geojson'
+    },
+    {
+      id: '3',
+      name: 'Flood Zones',
+      data: fz_data
     }
   ];
 
@@ -85,63 +99,117 @@ const App = () => {
         zoom: 10
       });
 
-      // Event handler for when the map is finished loading
       map.on('load', () => {
-        dataSources.forEach(async (dataSourceInfo, index) => {
-          const { id, url } = dataSourceInfo;
+        dataSources.forEach(async (dataSourceInfo) => {
+          const { id, url, data } = dataSourceInfo;
+          const geojsonData = url ? await fetchGeoJSONData(url) : data;
+          map.addSource(id, {
+            type: 'geojson',
+            data: geojsonData
+          });
 
-          await fetch(url)
-            .then(response => response.json())
-            .then(data => {
-              // Add a data source containing the GeoJSON data.
-              map.addSource(id, {
-                'type': 'geojson',
-                'data': url
-              });
+          const geometries = [...new Set(geojsonData.features.map(feature => feature.geometry.type))];
+          geometries.forEach((geometry) => {
+            const { type, paint, color } = determineLayerType(geometry);
+            const layerId = `${id}-${geometry}`;
+            const cvGeometry = geometry.includes("Multi") ? geometry.slice(5) : geometry;
 
-              // Get a unique list of geometry types in the data
-              const geometries = [...new Set(data.features.map(e => e.geometry.type))];
-              geometries.forEach((geometry, i) => {
-                // Determine the layer type and paint properties based on the geometry type
-                const { type, paint, color } = determineLayerType(geometry);
-                let cvGeometry = geometry;
-                if (geometry.includes("Multi")) cvGeometry = geometry.slice(5);
-                map.addLayer({
-                  'id': id + '-' + geometry,
-                  'type': type,
-                  'source': id, // reference the data source
-                  'visibility': 'visible',
-                  'layout': {},
-                  'paint': paint,
-                  'filter': ['==', '$type', cvGeometry]
+            // map.setLayoutProperty('label', 'text-field', [
+            //   'format',
+            //   ['get', 'name_en'],
+            //   { 'font-scale': 1.2 },
+            //   '\n',
+            //   {},
+            //   ['get', 'name'],
+            //   {
+            //     'font-scale': 0.8,
+            //     'text-font': [
+            //       'literal',
+            //       ['DIN Offc Pro Italic', 'Arial Unicode MS Regular']
+            //     ]
+            //   }
+            // ]);
+
+            map.addLayer({
+              id: layerId,
+              type,
+              source: id,
+              visibility: 'visible',
+              layout: {},
+              paint,
+              filter: ['==', '$type', cvGeometry]
+            },
+              // 'label'
+            );
+
+            let selectID = null;
+            map.on('mousemove', layerId, (event) => {
+              map.getCanvas().style.cursor = 'pointer';
+              const allProps = event.features[0].properties;
+
+              if (event.features.length === 0) return;
+              // Display the properties object in the sidebar
+              setInfoDisplay(allProps);
+
+              // feature state for the feature under the mouse
+              if (selectID) {
+                map.removeFeatureState({
+                  source: id,
+                  id: selectID
+                });
+              }
+
+              selectID = event.features[0].id;
+
+              map.setFeatureState(
+                {
+                  source: id,
+                  id: selectID
                 },
-                  // 'label'
-                );
-
-                // Update the layerToggles state to include the new layer
-                setLayerToggles(prevLayerToggles => ({
-                  ...prevLayerToggles,
-                  [id + '-' + geometry]: {
-                    on: true,
-                    color: color
-                  }
-                }));
-              });
-            })
-            .catch(error => {
-              console.error(error);
+                {
+                  hover: true
+                }
+              );
             });
+
+            map.on('mouseleave', layerId, () => {
+              if (selectID) {
+                map.setFeatureState(
+                  {
+                    source: id,
+                    id: selectID
+                  },
+                  {
+                    hover: false
+                  }
+                );
+              }
+              selectID = null;
+              // Remove the information from the previously hovered feature from the sidebar
+              setInfoDisplay(null);
+              // Reset the cursor style
+              map.getCanvas().style.cursor = '';
+            });
+
+            setLayerToggles(prevLayerToggles => ({
+              ...prevLayerToggles,
+              [layerId]: {
+                on: true,
+                color
+              }
+            }));
+          });
+
+
+
         });
         setMap(map);
       });
 
-      // Event handler for when the map's style data has finished loading
       map.on('styledata', () => {
-        // Check if all layers in the map are loaded
-        for (let layerToggle of Object.entries(layerToggles)) {
-          if (!map.getLayer(layerToggle.id)) return;
+        for (let [layerId, layerToggle] of Object.entries(layerToggles)) {
+          if (!map.getLayer(layerId)) return;
         }
-        // If all of the layers are present, set loading to false
         setLoading(false);
       });
     };
@@ -151,6 +219,15 @@ const App = () => {
       initializeMap();
     }
   }, []);
+
+  const fetchGeoJSONData = async (url) => {
+    try {
+      const response = await fetch(url);
+      return response.json();
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   // Function to get a random color (fixed-seed) for a layer
   const getColor = () => {
@@ -162,25 +239,41 @@ const App = () => {
   const determineLayerType = (data) => {
     let type, paint;
     let color = getColor();
+    let selectColor = chroma("orangered").hex();
     switch (data) {
       case 'Point':
         type = 'circle';
         paint = {
           'circle-radius': 5,
-          'circle-color': color
+          'circle-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            selectColor,
+            color
+          ]
         };
         break;
       case 'LineString':
         type = 'line';
         paint = {
           'line-width': 2,
-          'line-color': color
+          'line-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            selectColor,
+            color
+          ]
         };
         break;
       case 'Polygon':
         type = 'fill';
         paint = {
-          'fill-color': color,
+          'fill-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            selectColor,
+            color
+          ],
           'fill-opacity': 0.25
         };
         break;
@@ -188,20 +281,35 @@ const App = () => {
         type = 'circle';
         paint = {
           'circle-radius': 5,
-          'circle-color': color
+          'circle-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            selectColor,
+            color
+          ]
         };
         break;
       case 'MultiLineString':
         type = 'line';
         paint = {
           'line-width': 2,
-          'line-color': color
+          'line-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            selectColor,
+            color
+          ]
         };
         break;
       case 'MultiPolygon':
         type = 'fill';
         paint = {
-          'fill-color': color,
+          'fill-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            selectColor,
+            color
+          ],
           'fill-opacity': 0.25,
         };
         break;
@@ -241,7 +349,7 @@ const App = () => {
       {!loading && (
         <div>
           <button className="recenter-btn" onClick={recenterMap}>Recenter</button>
-          <FixedSidebar handleLayerToggle={handleLayerToggle} layerToggles={layerToggles} dataSources={dataSources} />
+          <FixedSidebar handleLayerToggle={handleLayerToggle} layerToggles={layerToggles} dataSources={dataSources} infoDisplay={infoDisplay} />
         </div>
       )}
 

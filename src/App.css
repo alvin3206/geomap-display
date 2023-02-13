@@ -45,6 +45,7 @@
 .fixed-sidebar {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   height: 100%;
   position: fixed;
   top: 0;
@@ -99,4 +100,14 @@ button {
   display: flex;
   flex-direction: column;
   padding: 5px 0;
+}
+
+.hover-info {
+  min-height:20%;
+  margin-bottom: 48px;
+}
+
+.info-item {
+  font-size: 12px;
+  padding: unset;
 }
